@@ -71,7 +71,7 @@ async def generate_3d(file: UploadFile = File(...)):
         print(f"[{mid}] Creating task...")
         r2 = tripo_request("POST", f"{BASE}/task",
                           headers={"Authorization": f"Bearer {KEY}"},
-                          json_data={"type": "image_to_model", "file": {"type": "png", "file_token": token}})
+                          json_data={"type": "image_to_model", "file": {"type": "png", "file_token": token}, "model_version": "v2.0-20240919"})
         if r2.get("code") != 0:
             raise Exception(f"Task: {r2.get('message')}")
         tid = r2["data"]["task_id"]
