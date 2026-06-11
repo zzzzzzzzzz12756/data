@@ -26,7 +26,7 @@ app.mount("/js", StaticFiles(directory=str(FRONTEND_DIR / "js")), name="js")
 
 def curl(method, url, headers=None, files=None, data=None, timeout=60):
     """Run curl with proxy and return JSON response"""
-    cmd = ["curl.exe", "-s", "-k", "-x", "http://127.0.0.1:7897",
+    cmd = ["curl", "-s", "-k",
            "-X", method, url, "--connect-timeout", "15", "-m", str(timeout)]
     if headers:
         for k, v in headers.items():
@@ -112,7 +112,7 @@ async def generate_3d(file: UploadFile = File(...)):
 
                 # Download model
                 print(f"[{mid}] Downloading...")
-                dl_cmd = ["curl.exe", "-s", "-k", "-x", "http://127.0.0.1:7897",
+                dl_cmd = ["curl", "-s", "-k",
                           "-L", "-o", str(OUTPUT_DIR / f"{mid}.glb"),
                           model_url, "--connect-timeout", "15", "-m", "60"]
                 subprocess.run(dl_cmd, check=True, timeout=70)
