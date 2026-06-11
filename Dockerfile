@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY outputs/ ./outputs/
+COPY start.sh ./start.sh
 
-# 启动
-CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8080}"]
+RUN chmod +x ./start.sh
+
+CMD ["./start.sh"]
