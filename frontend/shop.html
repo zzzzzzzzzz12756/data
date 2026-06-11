@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>✨ 小小衣橱 - 3D童装展示</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+            background: #fafafa; color: #333;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 顶部Banner */
+        .banner {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fdfcfb 100%);
+            padding: 40px 20px 30px; text-align: center;
+        }
+        .banner h1 { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .banner p { font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 8px; }
+
+        /* 商品卡片 */
+        .products { padding: 16px; max-width: 600px; margin: 0 auto; }
+        .product-card {
+            background: #fff; border-radius: 16px; margin-bottom: 16px;
+            overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .product-3d {
+            width: 100%; height: 360px; position: relative;
+            background: linear-gradient(180deg, #f8f8f8, #ececec);
+            cursor: grab; touch-action: none;
+        }
+        .product-3d:active { cursor: grabbing; }
+        .product-3d canvas { width: 100% !important; height: 100% !important; }
+        .badge-3d {
+            position: absolute; top: 12px; left: 12px;
+            background: rgba(0,0,0,0.6); color: #fff;
+            font-size: 11px; padding: 4px 10px; border-radius: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .hint-drag {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            color: #bbb; font-size: 11px; pointer-events: none;
+            animation: fadeInOut 3s ease infinite;
+        }
+        @keyframes fadeInOut {
+            0%,100% { opacity: 0.3; } 50% { opacity: 1; }
+        }
+
+        .product-info { padding: 16px; }
+        .product-name { font-size: 17px; font-weight: 600; color: #111; }
+        .product-desc { font-size: 13px; color: #888; margin-top: 6px; line-height: 1.6; }
+        .product-price {
+            display: flex; align-items: baseline; gap: 8px; margin-top: 12px;
+        }
+        .price-now { font-size: 24px; font-weight: 700; color: #ff4757; }
+        .price-now::before { content: "¥"; font-size: 16px; }
+        .price-old { font-size: 13px; color: #ccc; text-decoration: line-through; }
+        .product-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .tag {
+            font-size: 11px; padding: 3px 8px; border-radius: 4px;
+            background: #fff0f0; color: #ff6b81;
+        }
+        .tag.green { background: #f0fff4; color: #2ed573; }
+
+        /* 购买按钮 */
+        .buy-bar {
+            display: flex; gap: 10px; margin-top: 16px;
+        }
+        .btn-cart {
+            flex: 1; padding: 12px; border: 2px solid #ff4757;
+            border-radius: 25px; background: #fff; color: #ff4757;
+            font-size: 15px; font-weight: 600; cursor: pointer;
+        }
+        .btn-buy {
+            flex: 2; padding: 12px; border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #ff6b81, #ff4757);
+            color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+        }
+
+        /* 底部 */
+        .footer {
+            text-align: center; padding: 30px 20px 40px;
+            color: #bbb; font-size: 12px;
+        }
+
+        /* 光照切换 */
+        .light-btn {
+            position: absolute; top: 12px; right: 12px;
+            background: rgba(0,0,0,0.5); color: #fff; border: none;
+            width: 32px; height: 32px; border-radius: 50%;
+            font-size: 16px; cursor: pointer; z-index: 5;
+        }
+
+        /* 加载态 */
+        .loading-overlay {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #f8f8f8;
+        }
+        .loading-overlay .spinner {
+            width: 28px; height: 28px;
+            border: 3px solid #eee; border-top-color: #ff6b81;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay p { margin-top: 10px; font-size: 13px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<!-- Banner -->
+<div class="banner">
+    <h1>👶 小小衣橱</h1>
+    <p>3D环绕看细节 · 手指滑动旋转 · 给宝贝最好的</p>
+</div>
+
+<!-- 商品列表 -->
+<div class="products" id="products">
+    <!-- 商品由JS动态生成 -->
+</div>
+
+<!-- 底部 -->
+<div class="footer">
+    <p>👆 拖拽3D模型可旋转查看</p>
+    <p style="margin-top:6px;">小小衣橱 © 2026 · 用心做好每一件童装</p>
+</div>
+
+<script src="/js/three.min.js"></script>
+<script src="/js/OrbitControls.js"></script>
+<script src="/js/GLTFLoader.js"></script>
+
+<script>
+// ── 商品数据 ──
+// 每个商品的3D模型URL，生成后填入
+const PRODUCTS = [
+    {
+        name: "纯棉印花T恤 · 小恐龙",
+        desc: "100%新疆长绒棉，A类婴幼儿标准，亲肤透气不闷汗",
+        price: 59,
+        oldPrice: 89,
+        tags: ["纯棉", "A类标准", "透气"],
+        modelUrl: "",  // 生成3D后填入URL
+        imageUrl: ""   // 备用图片
+    },
+    {
+        name: "迪士尼联名连衣裙 · 冰雪奇缘",
+        desc: "正版授权，网纱公主裙，内衬纯棉不扎皮肤",
+        price: 89,
+        oldPrice: 139,
+        tags: ["迪士尼", "纯棉内衬", "公主裙"],
+        greenTag: true,
+        modelUrl: "",
+        imageUrl: ""
+    },
+    {
+        name: "春秋运动套装 · 小鲨鱼",
+        desc: "卫衣+束脚裤套装，加绒加厚，幼儿园必备",
+        price: 79,
+        oldPrice: 129,
+        tags: ["套装", "加绒", "幼儿园"],
+        modelUrl: "",
+        imageUrl: ""
+    }
+];
+
+// ── 渲染商品卡片 ──
+const container = document.getElementById('products');
+
+PRODUCTS.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.innerHTML = `
+        <div class="product-3d" id="viewer-${i}">
+            <span class="badge-3d">✨ 3D展示</span>
+            <button class="light-btn" onclick="toggleLight(${i})">💡</button>
+            <div class="loading-overlay" id="loading-${i}">
+                <div class="spinner"></div>
+                <p>加载3D模型中...</p>
+            </div>
+            <div class="hint-drag">👆 拖拽旋转查看</div>
+        </div>
+        <div class="product-info">
+            <div class="product-name">${p.name}</div>
+            <div class="product-desc">${p.desc}</div>
+            <div class="product-price">
+                <span class="price-now">${p.price}</span>
+                <span class="price-old">¥${p.oldPrice}</span>
+            </div>
+            <div class="product-tags">
+                ${p.tags.map(t => `<span class="tag${p.greenTag ? ' green' : ''}">${t}</span>`).join('')}
+            </div>
+            <div class="buy-bar">
+                <button class="btn-cart">加入购物车</button>
+                <button class="btn-buy">立即购买</button>
+            </div>
+        </div>
+    `;
+    container.appendChild(card);
+
+    // 初始化3D查看器
+    if (p.modelUrl) {
+        initProductViewer(i, p.modelUrl);
+    } else {
+        // 没有3D模型时显示占位
+        document.getElementById(`loading-${i}`).innerHTML = `
+            <p style="font-size:40px;">📸</p>
+            <p style="margin-top:8px;color:#999;">3D模型生成中<br>敬请期待</p>
+        `;
+    }
+});
+
+// ── 3D查看器 ──
+const viewers = {};
+
+function initProductViewer(index, modelUrl) {
+    const container = document.getElementById(`viewer-${index}`);
+    const loading = document.getElementById(`loading-${index}`);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf5f5f5);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 0.8, 2.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    container.insertBefore(renderer.domElement, container.firstChild);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.5;
+    controls.enablePan = false;
+    controls.minDistance = 1;
+    controls.maxDistance = 5;
+    controls.target.set(0, 0.3, 0);
+
+    // 灯光
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(2, 4, 3);
+    scene.add(mainLight);
+    const fillLight = new THREE.DirectionalLight(0xeef0ff, 0.6);
+    fillLight.position.set(-3, 2, -1);
+    scene.add(fillLight);
+
+    // 阴影
+    const shadowGeo = new THREE.CircleGeometry(0.8, 64);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.06 });
+    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    shadow.rotation.x = -Math.PI / 2;
+    scene.add(shadow);
+
+    // 动画
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // 加载模型
+    const loader = new THREE.GLTFLoader();
+    loader.load(modelUrl, gltf => {
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.8 / maxDim;
+        model.scale.setScalar(scale);
+        model.position.sub(center.multiplyScalar(scale));
+        scene.add(model);
+        loading.style.display = 'none';
+    }, undefined, err => {
+        loading.innerHTML = '<p style="color:#999;">模型加载失败</p>';
+    });
+
+    // 响应式
+    const ro = new ResizeObserver(() => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+    ro.observe(container);
+
+    viewers[index] = { scene, camera, renderer, controls, ambient, mainLight, fillLight };
+}
+
+// ── 光照切换 ──
+let lightModes = {};
+function toggleLight(index) {
+    const v = viewers[index];
+    if (!v) return;
+    lightModes[index] = ((lightModes[index] || 0) + 1) % 3;
+    const m = lightModes[index];
+    if (m === 0) {
+        v.ambient.intensity = 0.5; v.mainLight.intensity = 1.2;
+        v.mainLight.color.set(0xffffff); v.fillLight.intensity = 0.6;
+        v.scene.background.set(0xf5f5f5);
+    } else if (m === 1) {
+        v.ambient.intensity = 0.4; v.mainLight.intensity = 1.5;
+        v.mainLight.color.set(0xffeedd); v.fillLight.intensity = 0.4;
+        v.scene.background.set(0xfaf5f0);
+    } else {
+        v.ambient.intensity = 0.6; v.mainLight.intensity = 1.0;
+        v.mainLight.color.set(0xeeeeff); v.fillLight.intensity = 0.8;
+        v.scene.background.set(0xf0f2f5);
+    }
+}
+</script>
+</body>
+</html>
