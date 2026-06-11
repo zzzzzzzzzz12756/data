@@ -13,7 +13,9 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 FRONTEND_DIR = BASE_DIR / "frontend"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-KEY = os.environ.get("TRIPO_API_KEY", "tsk_LYTWnjBgzlleIXbZ8gniN-f25yqiRjUxssOxo2ZJMY4")
+KEY = os.environ.get("TRIPO_API_KEY")
+if not KEY:
+    raise Exception("TRIPO_API_KEY 环境变量未设置")
 BASE = "https://api.tripo3d.ai/v2/openapi"
 
 app = FastAPI(title="3D Photo Generator")
